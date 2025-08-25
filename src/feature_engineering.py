@@ -72,7 +72,38 @@ def transform_month_abbr_date_strings(df, column_name):
         return date_str # Retorna o original se o formato não corresponder ou o mês não for encontrado
 
     df[column_name] = df[column_name].apply(_transform_single_date_str)
+
     return df
+
+#Fator deflação
+def fator_deflacao(df):
+    df["fator_deflacao"] = None
+    df.loc[len(df)] = {"data": None, "IPCA": None, "fator_deflacao": 1.0}
+
+    logger.info("Calculando Fator_deflação...")
+    for i in range(len(df)-2, -1, -1):
+        df.iloc[i, df.columns.get_loc("fator_deflacao")] = df.iloc[i+1]["fator_deflacao"] * (1 + df.iloc[i]["IPCA"]/100)
+
+    return df.loc[df.index[:-1]]
+
+# Atualizar os preços com IPCA
+def preco_deflacionado(df):
+    # Importar caminho 
+    caminho = os.getcwd() + "\\data\\processed\\"
+    lista = os.listdir(caminho)
+    arquivo = [i for i in lista if re.search(r"bacen", i)][0]
+    # Importa IPCA
+    df_ipca  = pd.read_parquet(caminho + arquivo)
+    # Fator de deflação
+    df_ipca = fator_deflacao(df_ipca)
+    # Fazer o merge pela coluna data
+    df_deflacionado =  pd.merge(df, df_ipca, on="data", how="left")
+    
+    # Preços deflacionados
+    logger.info("Calculando preços atulizados...")
+    df_deflacionado["preco_atualizado"] = df_deflacionado["preco_medio"]/df_deflacionado["fator_deflacao"]
+
+    return df_deflacionado
 
 # Função para salvar os dados com novas features
 def save_engineerd_data(data, save_path):
@@ -85,7 +116,10 @@ def save_engineerd_data(data, save_path):
     nome_salvo = save_path.replace(".csv", ".parquet")
     #Salvando arquivo parquet de milho
     logger.info(f"Salvando dados com novas features em {save_path}...")
-    data[["data", "uf", "preco_medio"]].to_parquet("data/processed/" + nome_salvo, index=False)
+    #Excluindo a coluna original
+    data = data.drop("coluna_original", axis=1)
+    #Salvar os arquivos
+    data.to_parquet("data/processed/" + nome_salvo, index=False)
 
 # Função principal
 def main():
@@ -104,8 +138,11 @@ def main():
             # 3. Transformar a coluna 'data' em string '%d/%m/%Y'
             transform_data = transform_month_abbr_date_strings(long_data, 'data')
 
-            # 4. Salvar dados transformado
-            save_engineerd_data(transform_data, i)
+            # 4. Deflacionar os preços 
+            df_deflacionado = preco_deflacionado(transform_data)
+
+            # 5. Salvar dados transformado
+            save_engineerd_data(df_deflacionado, i)
 
             logger.info("Engenharia de features concluída com sucesso!")
 
