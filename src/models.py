@@ -109,3 +109,18 @@ def forecast(model, scaler, series: pd.Series, n_future: int):
     preds = scaler.inverse_transform(np.array(preds).reshape(-1,1)).ravel()
     return preds
 
+def main():
+    """
+    Função principal para executar o pipeline de models.
+    """
+    for i in lista:
+        arquivo = caminho + 1 
+        try:
+            # 1. Carregar dados processados
+            df = load_processed_data(arquivo)
+
+            # 2. Decomposição e dessazonalização
+            ts, decomposition, seasonal, ts_deseasonalized  = decomposicao_dessazonalizacao(df[config.VALUE_COL])
+
+            # 3. Ajustando e Construindo ARIMA
+            forecast_arima_real, real = build_ARIMA_fit(ts_deseasonalized, config.size_train, ts, seasonal)
