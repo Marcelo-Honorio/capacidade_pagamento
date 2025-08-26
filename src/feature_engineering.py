@@ -88,7 +88,7 @@ def fator_deflacao(df):
 
 # Atualizar os preços com IPCA
 def preco_deflacionado(df):
-    # Importar caminho 
+    # Caminho e lista de documentos 
     caminho = os.getcwd() + "\\data\\processed\\"
     lista = os.listdir(caminho)
     arquivo = [i for i in lista if re.search(r"bacen", i)][0]
